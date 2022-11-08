@@ -6,7 +6,6 @@ ament_auto_find_build_dependencies()
 
 ament_auto_add_library(${PROJECT_NAME} SHARED
   include/rosbag2_snapshot/snapshotter.hpp
-# src/snapshot.cpp
   src/snapshotter.cpp
 )
 

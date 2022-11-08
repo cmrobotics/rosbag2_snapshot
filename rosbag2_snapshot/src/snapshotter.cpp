@@ -249,7 +249,7 @@ Snapshotter::Snapshotter(const rclcpp::NodeOptions & options)
 
   // Create the queue for each topic and set up the subscriber to add to it on new messages
   for (auto & pair : options_.topics_) {
-    string topic{pair.first.name}, type{pair.first.type};
+    string topic{pair.first.name}, type{pair.first.type}, qos{pair.first.qos};
     fixTopicOptions(pair.second);
     shared_ptr<MessageQueue> queue;
     queue.reset(new MessageQueue(pair.second, get_logger()));
@@ -257,6 +257,7 @@ Snapshotter::Snapshotter(const rclcpp::NodeOptions & options)
     TopicDetails details{};
     details.name = topic;
     details.type = type;
+    details.qos = qos;
     std::pair<buffers_t::iterator, bool> res =
       buffers_.emplace(details, queue);
     assert(res.second);
@@ -338,6 +339,7 @@ void Snapshotter::parseOptionsFromParams()
     for (const auto & topic : topics) {
       std::string prefix = "topic_details." + topic;
       std::string topic_type{};
+      std::string topic_qos{};
       SnapshotterTopicOptions opts{};
 
       try {
@@ -345,6 +347,19 @@ void Snapshotter::parseOptionsFromParams()
       } catch (const rclcpp::ParameterTypeException & ex) {
         if (std::string{ex.what()}.find("not set") == std::string::npos) {
           RCLCPP_ERROR(get_logger(), "Topic type must be a string.");
+        } else {
+          RCLCPP_ERROR(get_logger(), "Topic %s is missing a type.", topic.c_str());
+        }
+
+        throw ex;
+      }
+
+
+      try {
+        topic_qos = declare_parameter<std::string>(prefix + ".qos");
+      } catch (const rclcpp::ParameterTypeException & ex) {
+        if (std::string{ex.what()}.find("not set") == std::string::npos) {
+          RCLCPP_ERROR(get_logger(), "QoS type must be a string.");
         } else {
           RCLCPP_ERROR(get_logger(), "Topic %s is missing a type.", topic.c_str());
         }
@@ -374,12 +389,13 @@ void Snapshotter::parseOptionsFromParams()
         }
       }
 
-      TopicDetails dets{};
-      dets.name = topic;
-      dets.type = topic_type;
+      TopicDetails topic_details{};
+      topic_details.name = topic;
+      topic_details.type = topic_type;
+      topic_details.qos = topic_qos;
       
-      if(is_blacklist) options_.blacklist_topics_.insert(SnapshotterOptions::topics_t::value_type(dets, opts));
-      else options_.topics_.insert(SnapshotterOptions::topics_t::value_type(dets, opts));
+      if(is_blacklist) options_.blacklist_topics_.insert(SnapshotterOptions::topics_t::value_type(topic_details, opts));
+      else options_.topics_.insert(SnapshotterOptions::topics_t::value_type(topic_details, opts));
 
     }
   } else {
@@ -447,12 +463,10 @@ void Snapshotter::subscribe(
   opts.topic_stats_options.state = rclcpp::TopicStatisticsState::Enable;
   opts.topic_stats_options.publish_topic = topic_details.name + "/statistics";
 
-  bool is_image = topic_details.type == "sensor_msgs/msg/Image";
-
   auto sub = create_generic_subscription(
     topic_details.name,
     topic_details.type,
-    is_image ? rclcpp::SensorDataQoS() : rclcpp::QoS{10},
+    topic_details.QoSToObject(),
     std::bind(&Snapshotter::topicCb, this, _1, queue),
     opts
   );
@@ -558,7 +572,7 @@ void Snapshotter::triggerSnapshotCb(
   // Write each selected topic's queue to bag file
   if (req->topics.size() && req->topics.at(0).name.size() && req->topics.at(0).type.size()) {
     for (auto & topic : req->topics) {
-      TopicDetails details{topic.name, topic.type};
+      TopicDetails details{topic.name, topic.type, topic.qos};
       // Find the message queue for this topic if it exsists
       auto found = buffers_.find(details);
 
@@ -720,6 +734,7 @@ SnapshotterClient::SnapshotterClient(const rclcpp::NodeOptions & options)
     for (const auto & topic : topic_names) {
       std::string prefix = "topic_details." + topic;
       std::string topic_type{};
+      std::string qos{};
 
       try {
         topic_type = declare_parameter<std::string>(prefix + ".type");
@@ -733,9 +748,22 @@ SnapshotterClient::SnapshotterClient(const rclcpp::NodeOptions & options)
         throw ex;
       }
 
+      try {
+        qos = declare_parameter<std::string>(prefix + ".qos");
+      } catch (const rclcpp::ParameterTypeException & ex) {
+        if (std::string{ex.what()}.find("not set") == std::string::npos) {
+          RCLCPP_ERROR(get_logger(), "QoS type must be a string.");
+        } else {
+          RCLCPP_ERROR(get_logger(), "Topic %s is missing a type.", topic.c_str());
+        }
+
+        throw ex;
+      }
+
       TopicDetails details{};
       details.name = topic;
       details.type = topic_type;
+      details.qos = qos;
       opts.topics_.push_back(details);
     }
   }

@@ -53,15 +53,17 @@ struct TopicDetails
 {
   std::string name;
   std::string type;
+  std::string qos;
+
 
   TopicDetails() {}
 
-  TopicDetails(std::string name, std::string type)
-  : name(name), type(type) {}
+  TopicDetails(std::string name, std::string type, std::string qos)
+  : name(name), type(type), qos(qos) {}
 
   bool operator==(const TopicDetails & t) const
   {
-    return name == t.name && type == t.type;
+    return name == t.name && type == t.type && qos == t.qos;
   }
 
   bool operator<(const TopicDetails & t) const
@@ -80,6 +82,18 @@ struct TopicDetails
     msg.name = name;
     msg.type = type;
     return msg;
+  }
+
+  // Converts QoS represented as string to rclcpp::QoS class' object
+  rclcpp::QoS QoSToObject() const 
+  {
+    if(qos == "ClockQoS") return rclcpp::ClockQoS();
+    else if(qos == "SensorDataQoS") return rclcpp::SensorDataQoS();
+    else if(qos == "ParametersQoS") return rclcpp::ParametersQoS();
+    else if(qos == "ServicesQoS") return rclcpp::ServicesQoS();
+    else if(qos == "ParameterEventsQoS") return rclcpp::ParameterEventsQoS();
+    else if(qos == "RosoutQoS") return rclcpp::RosoutQoS();
+    else return rclcpp::SystemDefaultsQoS();
   }
 };
 
@@ -128,6 +142,7 @@ struct SnapshotterOptions
   bool all_topics_;
 
   typedef std::map<TopicDetails, SnapshotterTopicOptions> topics_t;
+
   // Provides list of topics to snapshot and their limit configurations
   topics_t topics_;
 
