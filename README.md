@@ -26,13 +26,19 @@ Buffer recent messages until triggered to write or trigger an already running in
     topic_details:
       /topic1:
         type: "sensor_msgs/msg/NavSatFix"  # [Required if topic is specified] Topic type
+        qos:
+          profile_name: "SystemDefaultsQoS"
       /topic2:
         type: "sensor_msgs/msg/Odometry"
         duration: 15.0                     # [Optional] Override duration limit, inherit memory limit
+        qos:
+          profile_name: "SystemDefaultsQoS"
       /topic3:
         type: "sensor_msgs/msg/Image"
         duration: 2.0                      # [Optional] Override both limits
         memory: -1                         # Negative value means no limit
+        qos:
+          profile_name: "SensorDataQoS"
 ```
 
 ### Client

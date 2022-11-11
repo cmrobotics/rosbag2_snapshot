@@ -356,7 +356,7 @@ void Snapshotter::parseOptionsFromParams()
 
 
       try {
-        topic_qos = declare_parameter<std::string>(prefix + ".qos");
+        topic_qos = declare_parameter<std::string>(prefix + ".qos.profile_name");
       } catch (const rclcpp::ParameterTypeException & ex) {
         if (std::string{ex.what()}.find("not set") == std::string::npos) {
           RCLCPP_ERROR(get_logger(), "QoS type must be a string.");
